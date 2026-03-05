@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forest Hero - Pixel Art Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+        }
+        
+        #gameContainer {
+            position: relative;
+            border: 4px solid #4a3c28;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+        }
+        
+        #gameCanvas {
+            display: block;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 14px;
+            text-shadow: 2px 2px 0 #000;
+        }
+        
+        .health-bar {
+            width: 200px;
+            height: 20px;
+            border: 2px solid #fff;
+            background: #333;
+            margin-bottom: 10px;
+        }
+        
+        .health-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ff6600);
+            transition: width 0.3s;
+        }
+        
+        .power-indicator {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .power-icon {
+            width: 30px;
+            height: 30px;
+            border: 2px solid #fff;
+            background: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        
+        .power-icon.active {
+            background: #ffff00;
+            box-shadow: 0 0 10px #ffff00;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: white;
+            font-size: 12px;
+            text-shadow: 1px 1px 0 #000;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="ui">
+            <div class="health-bar">
+                <div class="health-fill" id="healthFill"></div>
+            </div>
+            <div class="power-indicator">
+                <div class="power-icon" id="firePower" title="Fire (1)">🔥</div>
+                <div class="power-icon" id="icePower" title="Ice (2)">❄️</div>
+                <div class="power-icon" id="lightningPower" title="Lightning (3)">⚡</div>
+            </div>
+            <div>Score: <span id="score">0</span></div>
+        </div>
+        <div id="controls">
+            WASD: Move | 1-3: Powers | Mouse: Aim | Click: Attack
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+
+        // Game state
+        const game = {
+            score: 0,
+            enemies: [],
+            projectiles: [],
+            particles: [],
+            trees: [],
+            powerUps: []
+        };
+
+        // Player
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            width: 32,
+            height: 32,
+            speed: 4,
+            health: 100,
+            maxHealth: 100,
+            currentPower: 'fire',
+            powerCooldown: 0,
+            invulnerable: 0
+        };
+
+        // Input handling
+        const keys = {};
+        const mouse = { x: 0, y: 0 };
+
+        document.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+            
+            // Power selection
+            if (e.key === '1') player.currentPower = 'fire';
+            if (e.key === '2') player.currentPower = 'ice';
+            if (e.key === '3') player.currentPower = 'lightning';
+            
+            updatePowerUI();
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = e.clientX - rect.left;
+            mouse.y = e.clientY - rect.top;
+        });
+
+        canvas.addEventListener('click', () => {
+            if (player.powerCooldown <= 0) {
+                shootPower();
+                player.powerCooldown = 15;
+            }
+        });
+
+        // Pixel art drawing functions
+        function drawPixelCharacter(x, y, color = '#00ff00') {
+            ctx.fillStyle = color;
+            // Head
+            ctx.fillRect(x + 12, y + 4, 8, 8);
+            // Body
+            ctx.fillRect(x + 10, y + 12, 12, 12);
+            // Arms
+            ctx.fillRect(x + 6, y + 14, 4, 6);
+            ctx.fillRect(x + 22, y + 14, 4, 6);
+            // Legs
+            ctx.fillRect(x + 12, y + 24, 4, 8);
+            ctx.fillRect(x + 18, y + 24, 4, 8);
+        }
+
+        function drawPixelEnemy(x, y, type = 'slime') {
+            if (type === 'slime') {
+                ctx.fillStyle = '#8b00ff';
+                // Slime body
+                ctx.fillRect(x + 4, y + 8, 24, 16);
+                ctx.fillRect(x + 2, y + 12, 28, 8);
+                // Eyes
+                ctx.fillStyle = '#ff0000';
+                ctx.fillRect(x + 8, y + 12, 4, 4);
+                ctx.fillRect(x + 20, y + 12, 4, 4);
+            }
+        }
+
+        function drawPixelTree(x, y) {
+            // Trunk
+            ctx.fillStyle = '#8b4513';
+            ctx.fillRect(x + 12, y + 20, 8, 12);
+            // Leaves
+            ctx.fillStyle = '#228b22';
+            ctx.fillRect(x + 4, y + 4, 24, 20);
+            ctx.fillRect(x, y + 8, 32, 12);
+            ctx.fillRect(x + 8, y, 16, 8);
+        }
+
+        function drawProjectile(proj) {
+            if (proj.type === 'fire') {
+                ctx.fillStyle = '#ff6600';
+                ctx.fillRect(proj.x - 4, proj.y - 4, 8, 8);
+                ctx.fillStyle = '#ffff00';
+                ctx.fillRect(proj.x - 2, proj.y - 2, 4, 4);
+            } else if (proj.type === 'ice') {
+                ctx.fillStyle = '#00ccff';
+                ctx.fillRect(proj.x - 4, proj.y - 4, 8, 8);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(proj.x - 2, proj.y - 2, 4, 4);
+            } else if (proj.type === 'lightning') {
+                ctx.strokeStyle = '#ffff00';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(proj.x, proj.y - 8);
+                ctx.lineTo(proj.x - 4, proj.y);
+                ctx.lineTo(proj.x + 4, proj.y);
+                ctx.lineTo(proj.x, proj.y + 8);
+                ctx.stroke();
+            }
+        }
+
+        function drawParticle(particle) {
+            ctx.fillStyle = particle.color;
+            ctx.globalAlpha = particle.alpha;
+            ctx.fillRect(particle.x - 2, particle.y - 2, 4, 4);
+            ctx.globalAlpha = 1;
+        }
+
+        // Game mechanics
+        function shootPower() {
+            const angle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
+            const speed = 8;
+            
+            game.projectiles.push({
+                x: player.x,
+                y: player.y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                type: player.currentPower,
+                damage: player.currentPower === 'fire' ? 25 : player.currentPower === 'ice' ? 15 : 35
+            });
+
+            // Create particles
+            for (let i = 0; i < 5; i++) {
+                game.particles.push({
+                    x: player.x,
+                    y: player.y,
+                    vx: (Math.random() - 0.5) * 4,
+                    vy: (Math.random() - 0.5) * 4,
+                    life: 20,
+                    color: player.currentPower === 'fire' ? '#ff6600' : player.currentPower === 'ice' ? '#00ccff' : '#ffff00'
+                });
+            }
+        }
+
+        function spawnEnemy() {
+            const side = Math.floor(Math.random() * 4);
+            let x, y;
+            
+            switch(side) {
+                case 0: x = Math.random() * canvas.width; y = -30; break;
+                case 1: x = canvas.width + 30; y = Math.random() * canvas.height; break;
+                case 2: x = Math.random() * canvas.width; y = canvas.height + 30; break;
+                case 3: x = -30; y = Math.random() * canvas.height; break;
+            }
+            
+            game.enemies.push({
+                x: x,
+                y: y,
+                width: 32,
+                height: 32,
+                speed: 1 + Math.random() * 2,
+                health: 50,
+                maxHealth: 50,
+                type: 'slime'
+            });
+        }
+
+        function updatePlayer() {
+            // Movement
+            if (keys['w']) player.y -= player.speed;
+            if (keys['s']) player.y += player.speed;
+            if (keys['a']) player.x -= player.speed;
+            if (keys['d']) player.x += player.speed;
+            
+            // Boundaries
+            player.x = Math.max(16, Math.min(canvas.width - 16, player.x));
+            player.y = Math.max(16, Math.min(canvas.height - 16, player.y));
+            
+            // Cooldowns
+            if (player.powerCooldown > 0) player.powerCooldown--;
+            if (player.invulnerable > 0) player.invulnerable--;
+        }
+
+        function updateEnemies() {
+            game.enemies.forEach((enemy, index) => {
+                // Move towards player
+                const dx = player.x - enemy.x;
+                const dy = player.y - enemy.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist > 0) {
+                    enemy.x += (dx / dist) * enemy.speed;
+                    enemy.y += (dy / dist) * enemy.speed;
+                }
+                
+                // Check collision with player
+                if (dist < 30 && player.invulnerable <= 0) {
+                    player.health -= 10;
+                    player.invulnerable = 60;
+                    
+                    // Knockback
+                    enemy.x -= (dx / dist) * 20;
+                    enemy.y -= (dy / dist) * 20;
+                }
+                
+                // Remove dead enemies
+                if (enemy.health <= 0) {
+                    game.enemies.splice(index, 1);
+                    game.score += 100;
+                    
+                    // Death particles
+                    for (let i = 0; i < 10; i++) {
+                        game.particles.push({
+                            x: enemy.x,
+                            y: enemy.y,
+                            vx: (Math.random() - 0.5) * 6,
+                            vy: (Math.random() - 0.5) * 6,
+                            life: 30,
+                            color: '#8b00ff'
+                        });
+                    }
+                }
+            });
+        }
+
+        function updateProjectiles() {
+            game.projectiles.forEach((proj, pIndex) => {
+                proj.x += proj.vx;
+                proj.y += proj.vy;
+                
+                // Remove if out of bounds
+                if (proj.x < 0 || proj.x > canvas.width || proj.y < 0 || proj.y > canvas.height) {
+                    game.projectiles.splice(pIndex, 1);
+                    return;
+                }
+                
+                // Check collision with enemies
+                game.enemies.forEach((enemy, eIndex) => {
+                    const dx = proj.x - enemy.x;
+                    const dy = proj.y - enemy.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist < 20) {
+                        enemy.health -= proj.damage;
+                        game.projectiles.splice(pIndex, 1);
+                        
+                        // Hit particles
+                        for (let i = 0; i < 8; i++) {
+                            game.particles.push({
+                                x: enemy.x,
+                                y: enemy.y,
+                                vx: (Math.random() - 0.5) * 4,
+                                vy: (Math.random() - 0.5) * 4,
+                                life: 15,
+                                color: proj.type === 'fire' ? '#ff6600' : proj.type === 'ice' ? '#00ccff' : '#ffff00'
+                            });
+                        }
+                    }
+                });
+            });
+        }
+
+        function updateParticles() {
+            game.particles.forEach((particle, index) => {
+                particle.x += particle.vx;
+                particle.y += particle.vy;
+                particle.life--;
+                particle.alpha = particle.life / 30;
+                particle.vx *= 0.95;
+                particle.vy *= 0.95;
+                
+                if (particle.life <= 0) {
+                    game.particles.splice(index, 1);
+                }
+            });
+        }
+
+        function updateUI() {
+            document.getElementById('healthFill').style.width = `${(player.health / player.maxHealth) * 100}%`;
+            document.getElementById('score').textContent = game.score;
+        }
+
+        function updatePowerUI() {
+            document.querySelectorAll('.power-icon').forEach(icon => icon.classList.remove('active'));
+            
+            if (player.currentPower === 'fire') document.getElementById('firePower').classList.add('active');
+            if (player.currentPower === 'ice') document.getElementById('icePower').classList.add('active');
+            if (player.currentPower === 'lightning') document.getElementById('lightningPower').classList.add('active');
+        }
+
+        function drawBackground() {
+            // Forest floor
+            ctx.fillStyle = '#2d4a2b';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Grass patches
+            ctx.fillStyle = '#3a5f3a';
+            for (let i = 0; i < 20; i++) {
+                const x = (i * 73) % canvas.width;
+                const y = (i * 47) % canvas.height;
+                ctx.fillRect(x, y, 40, 30);
+            }
+        }
+
+        function draw() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw background
+            drawBackground();
+            
+            // Draw trees
+            game.trees.forEach(tree => drawPixelTree(tree.x, tree.y));
+            
+            // Draw particles (behind characters)
+            game.particles.forEach(particle => drawParticle(particle));
+            
+            // Draw enemies
+            game.enemies.forEach(enemy => drawPixelEnemy(enemy.x, enemy.y, enemy.type));
+            
+            // Draw player
+            if (player.invulnerable % 10 < 5) { // Flashing when invulnerable
+                drawPixelCharacter(player.x - 16, player.y - 16, '#00ff00');
+            }
+            
+            // Draw projectiles
+            game.projectiles.forEach(proj => drawProjectile(proj));
+        }
+
+        function gameLoop() {
+            updatePlayer();
+            updateEnemies();
+            updateProjectiles();
+            updateParticles();
+            updateUI();
+            draw();
+            
+            // Spawn enemies
+            if (Math.random() < 0.02) spawnEnemy();
+            
+            // Game over
+            if (player.health <= 0) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '48px Courier New';
+                ctx.textAlign = 'center';
+                ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2);
+                ctx.font = '24px Courier New';
+                ctx.fillText(`Final Score: ${game.score}`, canvas.width / 2, canvas.height / 2 + 50);
+                return;
+            }
+            
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Initialize game
+        function init() {
+            // Create forest trees
+            for (let i = 0; i < 15; i++) {
+                game.trees.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height
+                });
+            }
+            
+            updatePowerUI();
+            gameLoop();
+        }
+
+        init();
+    </script>
+</body>
+</html>
