@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Forest Hero (Phaser)</title>
+  <style>
+    :root {
+      --bg0: #070b07;
+      --bg1: #0b130c;
+      --panel: rgba(14, 20, 14, 0.78);
+      --panel2: rgba(10, 14, 10, 0.88);
+      --text: #eaffea;
+      --muted: rgba(234, 255, 234, 0.7);
+      --border: rgba(234, 255, 234, 0.22);
+      --accent: #2fe66d;
+      --danger: #ff3355;
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(1100px 600px at 20% 10%, rgba(47, 230, 109, 0.12), transparent 55%),
+        radial-gradient(900px 500px at 85% 20%, rgba(47, 215, 255, 0.12), transparent 55%),
+        radial-gradient(1000px 600px at 70% 85%, rgba(255, 242, 107, 0.1), transparent 55%),
+        linear-gradient(180deg, var(--bg1), var(--bg0));
+      overflow-x: hidden;
+    }
+
+    .page {
+      min-height: 100%;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(10px);
+      background: linear-gradient(180deg, rgba(10, 16, 10, 0.85), rgba(10, 16, 10, 0.55));
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .brand h1 {
+      font-size: 16px;
+      margin: 0;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+    }
+
+    .brand span {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .icon-btn {
+      width: 42px;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    .icon-btn svg {
+      width: 22px;
+      height: 22px;
+      opacity: 0.92;
+    }
+
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      letter-spacing: 0.2px;
+      transition: all 0.15s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      border-color: rgba(234, 255, 234, 0.45);
+      background: rgba(14, 20, 14, 0.92);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-primary {
+      border-color: rgba(47, 230, 109, 0.5);
+      box-shadow: 0 0 0 3px rgba(47, 230, 109, 0.12) inset;
+    }
+
+    .btn-danger {
+      border-color: rgba(255, 51, 85, 0.55);
+      box-shadow: 0 0 0 3px rgba(255, 51, 85, 0.12) inset;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 18px 16px 28px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      background: var(--panel2);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.45),
+        0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+    }
+
+    .game-shell {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+    }
+
+    .game-overlay {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      gap: 10px;
+      z-index: 30;
+      pointer-events: auto;
+    }
+
+    .game-overlay .btn {
+      backdrop-filter: blur(10px);
+    }
+
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 12px;
+      border-bottom: 1px solid var(--border);
+      gap: 10px;
+      background: linear-gradient(180deg, rgba(18, 26, 18, 0.85), rgba(10, 14, 10, 0.85));
+    }
+
+    .card-head .hint {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 500;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    }
+
+    #app {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      position: relative;
+    }
+
+    .hud-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 20;
+      padding: 16px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .hud-bar-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hud-bar-bg {
+      width: 240px;
+      height: 18px;
+      background: rgba(10, 15, 10, 0.9);
+      border: 2px solid rgba(234, 255, 234, 0.4);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      position: relative;
+    }
+
+    .hud-bar-fill {
+      height: 100%;
+      width: 100%;
+      transition: width 0.15s ease-out, background-color 0.2s ease;
+      border-radius: 4px;
+    }
+
+    .hud-bar-text {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+      letter-spacing: 0.5px;
+    }
+
+    .hud-hp-fill {
+      background: linear-gradient(90deg, #ff3355, #ff5577);
+    }
+
+    .hud-drown-fill {
+      background: linear-gradient(90deg, #2fd7ff, #5de5ff);
+    }
+
+    .hud-power-fill {
+      background: linear-gradient(90deg, #ff7a18, #ffa34d);
+    }
+
+    .hud-dash-fill {
+      background: linear-gradient(90deg, #9aff8a, #bfffab);
+    }
+
+    .hud-icon {
+      width: 24px;
+      height: 24px;
+      background: rgba(10, 15, 10, 0.9);
+      border: 2px solid rgba(234, 255, 234, 0.4);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    .drown-container {
+      opacity: 0;
+      transform: translateX(-20px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .drown-container.active {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .score-display {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 24px;
+      font-weight: 800;
+      color: #fff;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8), 0 0 4px var(--accent);
+      letter-spacing: 1px;
+    }
+
+    canvas {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      padding: 14px 16px;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    dialog {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 0;
+      background: rgba(10, 14, 10, 0.95);
+      color: var(--text);
+      width: min(520px, calc(100vw - 24px));
+      box-shadow: 0 40px 120px rgba(0, 0, 0, 0.6);
+    }
+
+    .settings-shell {
+      display: grid;
+      grid-template-columns: 190px 1fr;
+      min-height: 360px;
+    }
+
+    .settings-side {
+      border-right: 1px solid rgba(234, 255, 234, 0.12);
+      background: rgba(255, 255, 255, 0.03);
+      padding: 14px;
+    }
+
+    .settings-title {
+      font-size: 26px;
+      margin: 0 0 10px;
+      letter-spacing: 0.5px;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.12);
+    }
+
+    .settings-nav {
+      display: grid;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .settings-tab {
+      display: block;
+      padding: 10px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(234, 255, 234, 0.12);
+      background: rgba(0, 0, 0, 0.18);
+      color: rgba(234, 255, 234, 0.72);
+      font-weight: 700;
+      text-align: left;
+    }
+
+    .settings-tab.active {
+      color: #fffa9a;
+      border-color: rgba(255, 250, 154, 0.35);
+      box-shadow: 0 0 0 3px rgba(255, 250, 154, 0.08) inset;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    body.crt-enabled::before {
+      content: " ";
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.04));
+      z-index: 99999;
+      background-size: 100% 2px, 3px 100%;
+      pointer-events: none;
+    }
+
+    .settings-main {
+      padding: 14px;
+    }
+
+    .settings-main h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: rgba(234, 255, 234, 0.8);
+    }
+
+    dialog::backdrop {
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(6px);
+    }
+
+    .modal {
+      padding: 14px;
+    }
+
+    .modal-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal-title h2 {
+      margin: 0;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .grid {
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 10px;
+      border: 1px solid rgba(234, 255, 234, 0.12);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .row label {
+      font-weight: 600;
+    }
+
+    .row small {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-weight: 400;
+    }
+
+    input[type="range"] {
+      width: 200px;
+      accent-color: var(--accent);
+    }
+
+    .toggle {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      font-weight: 600;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    @media (min-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+  <script type="module" crossorigin src="/assets/index-6n0spHqV.js"></script>
+</head>
+
+<body>
+  <div class="page">
+    <header>
+      <div class="header-inner">
+        <div class="brand">
+          <h1>Forest Hero</h1>
+          <span>Pixel forest • Superpowers • Phaser</span>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div class="layout">
+        <div class="card">
+          <div class="card-head">
+            <div class="hint">Move: WASD / Arrows • Shoot: Mouse • Dash: Space • Powers: 1-3</div>
+            <div class="hint" id="statusText">Ready</div>
+          </div>
+          <div id="gameShell" class="game-shell">
+            <div class="game-overlay" aria-label="Game overlay controls">
+              <button class="btn" id="btnFullscreen" type="button">Fullscreen</button>
+              <button class="btn btn-primary icon-btn" id="btnSettings" type="button" aria-label="Settings"
+                title="Settings">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path
+                    d="M12 8.4a3.6 3.6 0 1 0 0 7.2 3.6 3.6 0 0 0 0-7.2Zm9 3.6c0-.5 0-1-.1-1.4l-2.1-.6a7.9 7.9 0 0 0-.8-1.9l1.2-1.9c-.3-.4-.7-.8-1.1-1.1l-1.9 1.2c-.6-.3-1.2-.6-1.9-.8l-.6-2.1c-.5-.1-.9-.1-1.4-.1s-1 0-1.4.1l-.6 2.1c-.7.2-1.3.5-1.9.8L5.9 3.8c-.4.3-.8.7-1.1 1.1l1.2 1.9c-.3.6-.6 1.2-.8 1.9l-2.1.6c-.1.5-.1.9-.1 1.4s0 1 .1 1.4l2.1.6c.2.7.5 1.3.8 1.9l-1.2 1.9c.3.4.7.8 1.1 1.1l1.9-1.2c.6.3 1.2.6 1.9.8l.6 2.1c.5.1.9.1 1.4.1s1 0 1.4-.1l.6-2.1c.7-.2 1.3-.5 1.9-.8l1.9 1.2c.4-.3.8-.7 1.1-1.1l-1.2-1.9c.3-.6.6-1.2.8-1.9l2.1-.6c.1-.5.1-.9.1-1.4Z"
+                    stroke="rgba(234, 255, 234, 0.92)" stroke-width="1.6" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg>
+              </button>
+              <button class="btn btn-danger" id="btnRestart" type="button">Restart</button>
+            </div>
+            <div id="app">
+              <div class="hud-overlay" id="hudOverlay" style="display: none;">
+                <div class="score-display">Score: <span id="hudScore">0</span></div>
+
+                <div class="hud-bar-container">
+                  <div class="hud-icon">❤️</div>
+                  <div class="hud-bar-bg">
+                    <div class="hud-bar-fill hud-hp-fill" id="hudHpBar"></div>
+                    <div class="hud-bar-text" id="hudHpText">100 / 100</div>
+                  </div>
+                </div>
+
+                <div class="hud-bar-container">
+                  <div class="hud-icon" id="hudPowerIcon">🔥</div>
+                  <div class="hud-bar-bg" style="width: 160px; height: 12px;">
+                    <div class="hud-bar-fill hud-power-fill" id="hudPowerBar"></div>
+                  </div>
+                </div>
+
+                <div class="hud-bar-container">
+                  <div class="hud-icon">💨</div>
+                  <div class="hud-bar-bg" style="width: 160px; height: 12px;">
+                    <div class="hud-bar-fill hud-dash-fill" id="hudDashBar"></div>
+                  </div>
+                </div>
+
+                <div class="hud-bar-container drown-container" id="hudDrownContainer">
+                  <div class="hud-icon">🫧</div>
+                  <div class="hud-bar-bg" style="width: 160px; height: 12px;">
+                    <div class="hud-bar-fill hud-drown-fill" id="hudDrownBar"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      Tip: open Settings to change zoom and toggles. Your settings are saved automatically.
+    </footer>
+
+    <dialog id="settingsDialog" aria-label="Settings">
+      <div class="settings-shell">
+        <div class="settings-side">
+          <div class="settings-title">Settings</div>
+          <div class="settings-nav">
+            <button class="settings-tab active" data-tab="tab-gameplay">Gameplay</button>
+            <button class="settings-tab" data-tab="tab-video">Video</button>
+            <button class="settings-tab" data-tab="tab-audio">Audio</button>
+          </div>
+
+          <div class="modal-actions" style="justify-content: flex-start; padding: 14px 0 0; border-top: none">
+            <button class="btn" id="btnCloseSettings" type="button">Back</button>
+          </div>
+        </div>
+
+        <div class="settings-main">
+          <div id="tab-gameplay" class="tab-content active">
+            <h3>Gameplay</h3>
+            <div class="grid" style="padding: 0">
+              <div class="row">
+                <div>
+                  <span class="toggle">Screen Shake</span>
+                  <small>Disable if you want a calmer experience.</small>
+                </div>
+                <input id="settingShake" type="checkbox" />
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-video" class="tab-content">
+            <h3>Video</h3>
+            <div class="grid" style="padding: 0">
+              <div class="row">
+                <div>
+                  <label for="settingZoom">Camera Zoom: <span id="zoomValue">1.25</span></label>
+                  <small>Higher zoom = bigger pixels.</small>
+                </div>
+                <input id="settingZoom" type="range" min="1" max="2" step="0.05" />
+              </div>
+
+              <div class="row">
+                <div>
+                  <span class="toggle">Particles</span>
+                  <small>Effects for hits, dashes, healing.</small>
+                </div>
+                <input id="settingParticles" type="checkbox" />
+              </div>
+
+              <div class="row">
+                <div>
+                  <span class="toggle">CRT Filter</span>
+                  <small>Retro monitor scanlines effect.</small>
+                </div>
+                <input id="settingCrt" type="checkbox" />
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-audio" class="tab-content">
+            <h3>Audio</h3>
+            <div class="grid" style="padding: 0">
+              <div class="row">
+                <div>
+                  <label for="settingVolume">Master Volume: <span id="volumeValue">80</span>%</label>
+                  <small>Adjust sound effects volume.</small>
+                </div>
+                <input id="settingVolume" type="range" min="0" max="1" step="0.05" />
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button class="btn" id="btnDefaults" type="button">Defaults</button>
+            <button class="btn btn-primary" id="btnApply" type="button">Apply</button>
+          </div>
+        </div>
+      </div>
+    </dialog>
+  </div>
+</body>
+
+</html>
