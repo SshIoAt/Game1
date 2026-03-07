@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>(RE)VOLUTION — Catacombe di Parigi</title>
+  <style>
+    :root {
+      --bg: #0a0608;
+      --panel: rgba(15, 8, 12, 0.88);
+      --text: #e8d5c0;
+      --muted: rgba(232, 213, 192, 0.65);
+      --border: rgba(232, 213, 192, 0.18);
+      --accent: #c8883a;
+      --danger: #8b1a1a;
+      --hell: #ff3030;
+    }
+    html, body { height: 100%; margin: 0; }
+    body {
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+      background:
+        radial-gradient(900px 500px at 20% 10%, rgba(180, 60, 20, 0.15), transparent 60%),
+        radial-gradient(800px 400px at 80% 80%, rgba(120, 10, 10, 0.18), transparent 60%),
+        linear-gradient(180deg, #120608, #0a0408);
+      min-height: 100%;
+    }
+    header {
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(18,6,8,0.9), rgba(10,4,6,0.7));
+      padding: 12px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    header h1 { margin: 0; font-size: 18px; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); }
+    header span { font-size: 12px; color: var(--muted); }
+    main { max-width: 1200px; margin: 0 auto; padding: 18px; }
+    .card {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      margin-bottom: 16px;
+    }
+    .card-head {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(30,10,12,0.9), rgba(15,5,8,0.8));
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .card-head h2 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--accent); }
+    .card-head .hint { font-size: 12px; color: var(--muted); }
+    #gameContainer { width: 100%; position: relative; }
+    canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+    .controls {
+      display: flex; gap: 10px; flex-wrap: wrap; padding: 10px 16px;
+      border-top: 1px solid var(--border);
+      background: rgba(10,5,8,0.6);
+    }
+    .btn {
+      appearance: none; border: 1px solid var(--border); background: rgba(20,10,12,0.8);
+      color: var(--text); padding: 8px 14px; border-radius: 8px; cursor: pointer;
+      font-size: 13px; font-weight: 600; transition: all 0.15s;
+    }
+    .btn:hover { border-color: var(--accent); color: var(--accent); }
+    .btn.active { border-color: var(--accent); color: var(--accent); background: rgba(200,136,58,0.15); }
+    .legend {
+      display: flex; gap: 16px; flex-wrap: wrap; padding: 12px 16px;
+      font-size: 12px; color: var(--muted); border-top: 1px solid var(--border);
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+    .info-card {
+      border: 1px solid var(--border); border-radius: 10px;
+      background: rgba(15,8,10,0.7); padding: 14px;
+    }
+    .info-card h3 { margin: 0 0 8px; font-size: 13px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; }
+    .info-card p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+    footer { border-top: 1px solid var(--border); padding: 12px 20px; font-size: 11px; color: var(--muted); text-align: center; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>⚗️ (RE)VOLUTION — Catacombe di Parigi</h1>
+    <span>Phaser 3 · Tilemap · French Revolution Supernatural Survival</span>
+  </header>
+  <main>
+    <div class="card">
+      <div class="card-head">
+        <h2>🗺️ Mappa delle Catacombe</h2>
+        <span class="hint">WASD / Frecce: muovi · Scroll: zoom · Trascina: pan</span>
+      </div>
+      <div id="gameContainer"></div>
+      <div class="controls">
+        <button class="btn" id="btnReset">↺ Reset Vista</button>
+        <button class="btn" id="btnZoomIn">＋ Zoom In</button>
+        <button class="btn" id="btnZoomOut">－ Zoom Out</button>
+        <button class="btn active" id="btnToggleLayer0">Background</button>
+        <button class="btn active" id="btnToggleLayer1">Pavimento</button>
+        <button class="btn active" id="btnToggleLayer2">Muri</button>
+        <button class="btn active" id="btnToggleLayer3">Decorazioni</button>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#1a1520"></div>Void/Muro</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#7888a8"></div>Pavimento in pietra</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#a8b8d0"></div>Pavimento illuminato</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#883030"></div>Zona Portale Infernale</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#606878"></div>Muri e bordi</div>
+      </div>
+    </div>
+    <div class="info-grid">
+      <div class="info-card">
+        <h3>📖 Ambientazione</h3>
+        <p>Parigi, fine XVIII secolo. Il Re, disperato, stringe un patto con il diavolo per sedare la rivolta. Le catacombe nascondono il Portale verso l'inferno che l'alchimista deve chiudere.</p>
+      </div>
+      <div class="info-card">
+        <h3>🗺️ Struttura della Mappa</h3>
+        <p><strong>100×100 tiles</strong> (16×16px) = 1600×1600 pixel totali. 4 layer: background, pavimento, muri, decorazioni.</p>
+      </div>
+      <div class="info-card">
+        <h3>🏛️ Zone Principali</h3>
+        <p><strong>Ingresso</strong> (nord) · <strong>Ossari Est/Ovest</strong> · <strong>Navata Centrale</strong> · <strong>Camera di Tortura</strong> · <strong>Archivi</strong> · <strong>Camera Rituale</strong> · <strong>Portale Infernale</strong> (sud)</p>
+      </div>
+      <div class="info-card">
+        <h3>⚔️ Gameplay Notes</h3>
+        <p>Il pavimento rosso-mattone indica l'area del Portale Infernale. I passaggi segreti collegano gli ossari alla zona finale. Il tileset usato: <code>tiny-town/tilemap_packed.png</code></p>
+      </div>
+    </div>
+  </main>
+  <footer>(RE)VOLUTION · Tilemap Catacombe di Parigi · Phaser 3 + Tiled JSON · Progetto corso "Crea un videogame con PhaserJs e Typescript"</footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.88.2/dist/phaser.min.js"></script>
+  <script>
+  (function() {
+    const TILE_W = 16, TILE_H = 16, MAP_W = 100, MAP_H = 100;
+    const SCALE = 2;
+
+    class CatacombScene extends Phaser.Scene {
+      constructor() { super({ key: 'catacomb' }); }
+
+      preload() {
+        this.load.tilemapTiledJSON('catacomb', '/assets/catacomb/catacomb.json');
+        this.load.image('tilemap_packed', '/assets/tiny-town/tilemap_packed.png');
+      }
+
+      create() {
+        const map = this.make.tilemap({ key: 'catacomb' });
+        const tiles = map.addTilesetImage('tilemap_packed', 'tilemap_packed');
+
+        this.layers = [
+          map.createLayer('background', tiles, 0, 0),
+          map.createLayer('floor',      tiles, 0, 0),
+          map.createLayer('walls',      tiles, 0, 0),
+          map.createLayer('decor',      tiles, 0, 0),
+        ];
+
+        this.layers.forEach(l => { if (l) l.setScale(SCALE); });
+
+        // Camera setup
+        const worldW = MAP_W * TILE_W * SCALE;
+        const worldH = MAP_H * TILE_H * SCALE;
+        this.cameras.main.setBounds(0, 0, worldW, worldH);
+        this.cameras.main.centerOn(worldW / 2, worldH / 2);
+        this.cameras.main.setZoom(0.6);
+
+        // Cursor keys for panning
+        this.cursors = this.input.keyboard.createCursorKeys();
+        this.wasd = this.input.keyboard.addKeys({ up: 'W', down: 'S', left: 'A', right: 'D' });
+
+        // Mouse drag to pan
+        this.input.on('pointermove', (p) => {
+          if (!p.isDown) return;
+          this.cameras.main.scrollX -= (p.x - p.prevPosition.x) / this.cameras.main.zoom;
+          this.cameras.main.scrollY -= (p.y - p.prevPosition.y) / this.cameras.main.zoom;
+        });
+
+        // Mouse wheel zoom
+        this.input.on('wheel', (p, objs, dx, dy) => {
+          const z = this.cameras.main.zoom;
+          this.cameras.main.setZoom(Phaser.Math.Clamp(z - dy * 0.001, 0.2, 4));
+        });
+
+        // Expose layers to buttons
+        window._phaserLayers = this.layers;
+        window._phaserCamera = this.cameras.main;
+        window._phaserWorldW = worldW;
+        window._phaserWorldH = worldH;
+
+        // Dim dark areas slightly for atmosphere
+        this.cameras.main.setBackgroundColor('#0a0408');
+      }
+
+      update() {
+        const cam = this.cameras.main;
+        const speed = 8 / cam.zoom;
+        if (this.cursors.left.isDown  || this.wasd.left.isDown)  cam.scrollX -= speed;
+        if (this.cursors.right.isDown || this.wasd.right.isDown) cam.scrollX += speed;
+        if (this.cursors.up.isDown    || this.wasd.up.isDown)    cam.scrollY -= speed;
+        if (this.cursors.down.isDown  || this.wasd.down.isDown)  cam.scrollY += speed;
+      }
+    }
+
+    const container = document.getElementById('gameContainer');
+    const W = Math.min(container.offsetWidth || 800, 1160);
+    const H = Math.round(W * 9 / 16);
+
+    const game = new Phaser.Game({
+      type: Phaser.AUTO,
+      width: W,
+      height: H,
+      backgroundColor: '#0a0408',
+      parent: 'gameContainer',
+      scene: CatacombScene,
+      scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+      pixelArt: true,
+    });
+
+    // Button handlers
+    document.getElementById('btnReset').addEventListener('click', () => {
+      if (!window._phaserCamera) return;
+      window._phaserCamera.centerOn(window._phaserWorldW/2, window._phaserWorldH/2);
+      window._phaserCamera.setZoom(0.6);
+    });
+    document.getElementById('btnZoomIn').addEventListener('click', () => {
+      if (!window._phaserCamera) return;
+      window._phaserCamera.setZoom(Phaser.Math.Clamp(window._phaserCamera.zoom + 0.2, 0.2, 4));
+    });
+    document.getElementById('btnZoomOut').addEventListener('click', () => {
+      if (!window._phaserCamera) return;
+      window._phaserCamera.setZoom(Phaser.Math.Clamp(window._phaserCamera.zoom - 0.2, 0.2, 4));
+    });
+    [0,1,2,3].forEach(i => {
+      document.getElementById('btnToggleLayer' + i).addEventListener('click', function() {
+        if (!window._phaserLayers) return;
+        const l = window._phaserLayers[i];
+        if (!l) return;
+        l.setVisible(!l.visible);
+        this.classList.toggle('active', l.visible);
+      });
+    });
+  })();
+  </script>
+</body>
+</html>
